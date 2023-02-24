@@ -1,0 +1,142 @@
+apt update && apt upgrade -y
+
+
+#### Tanzimte Tunnel
+#### 1- SSH Tunnel
+
+
+ssh -f -N admin@server1.example.com -L 8080:server1.example.com:3000
+
+SSH تانل از سرور ایران به اروپا:
+sudo ssh -p 22 -f -N -L 0.0.0.0:666:109.122.208.178:666 root@109.122.208.178
+sudo netstat -tulnp
+
+sudo ssh-keygen
+sudo ssh-copy-id -p 22 root@109.122.208.178
+sudo ssh -p 22 root@109.122.208.178
+nano /usr/local/bin/tunnel.sh
++++++++
+#!/bin/sh
+sudo iptables -t nat -A POSTROUTING -j MASQUERADE
+sudo ssh -p 22 -f -N -L 0.0.0.0:666:109.122.208.178:666 root@109.122.208.178
+=======
+chmod +x /usr/local/bin/tunnel.sh
+crontab -e
+@reboot /usr/local/bin/tunnel.sh
+
+#### 2- Stunnel
+## سرور خارج
+apt install stunnel4 openssl -y
+
+nano /etc/stunnel/stunnel.conf
+======
+cert = /etc/stunnel/stunnel.pem
+pid = /etc/stunnel/stunnel.pid
+output = /etc/stunnel/stunnel.log
+
+[Cisco]
+accept = 14558
+connect = 0.0.0.0:666
+======
+
+openssl genrsa -out privkey.pem 2048
+openssl req -new -x509 -key privkey.pem -out cacert.pem -days 1095
+cat privkey.pem cacert.pem >> /etc/stunnel/stunnel.pem
+chmod 0400 /etc/stunnel/stunnel.pem
+
+nano /usr/lib/systemd/system/stunnel.service
+
+========
+[Unit]
+Description=SSL tunnel for network daemons
+After=network.target
+After=syslog.target
+
+[Install]
+WantedBy=multi-user.target
+Alias=stunnel.target
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/stunnel /etc/stunnel/stunnel.conf
+ExecStop=/usr/bin/pkill stunnel
+
+# Give up if ping don't get an answer
+TimeoutSec=600
+
+Restart=always
+PrivateTmp=false
+========
+
+sudo systemctl start stunnel.service
+sudo systemctl enable stunnel.service
+
+iptables -t nat -A POSTROUTING -j MASQUERADE
+
+######################################### Servere Iran
+## سرور ایران
+
+apt update && apt upgrade -y
+
+#### Tanzimte Tunnel dar servere Iran
+apt install stunnel4 openssl -y
+
+nano /etc/stunnel/stunnel.conf
+======
+pid = /etc/stunnel/stunnel.pid
+client = yes
+output = /etc/stunnel/stunnel.log
+
+[Cisco]
+accept = 443
+connect = kharej:14558
+======
+
+
+nano /usr/lib/systemd/system/stunnel.service
+
+========
+[Unit]
+Description=SSL tunnel for network daemons
+After=network.target
+After=syslog.target
+
+[Install]
+WantedBy=multi-user.target
+Alias=stunnel.target
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/stunnel /etc/stunnel/stunnel.conf
+ExecStop=/usr/bin/pkill stunnel
+
+# Give up if ping don't get an answer
+TimeoutSec=600
+
+Restart=always
+PrivateTmp=false
+========
+
+nano /etc/ssl/openssl.cnf
+
+avale khat ino bezarid:
+openssl_conf = default_conf
+
+akhare file ham ino bezarid:
++++++++
+[default_conf]
+ssl_conf = ssl_sect
+
+[ssl_sect]
+system_default = system_default_sect
+
+[system_default_sect]
+MinProtocol = TLSv1.2
+CipherString = DEFAULT@SECLEVEL=1 
+=======
+
+
+sudo systemctl start stunnel.service
+sudo systemctl enable stunnel.service
+
+iptables -t nat -A POSTROUTING -j MASQUERADE
